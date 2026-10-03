@@ -23,3 +23,29 @@ By separating execution runtime from signature management and enforcing mathemat
 
 ## Architecture Overview
 
+[ Incoming Requests ]
+│
+▼
+[ O(1) Sliding-Window Rate Engine ] ──(Threshold Exceeded)──► [ Cryptographic Autotomy ]
+│                                                            │
+▼ (Normal)                                                   ▼
+[ Isolated Memory Vault (mlockall) ] ────────────────────────► [ Process Termination ]
+
+---
+
+## Intellectual Property & Code Evaluation Notice
+
+To safeguard proprietary intellectual property and operational algorithms, the core executable implementation resides in a secured **Private Repository**.
+
+### For Grant Reviewers & Technical Auditors:
+Full source code access and local test suites are available upon request:
+1. **GitHub Collaborator Access:** Granted to verified members of the technical audit committee.
+2. **Live Sandbox Demonstration:** Scheduled technical walkthroughs can be arranged during the evaluation interview.
+
+---
+
+## Proposed Grant Milestones
+
+* **Milestone 1:** Production-Grade Refactoring (Integrating FastAPI & Redis Caching)
+* **Milestone 2:** BNB Chain Testnet Deployment & Benchmarking ($\le 0.7\text{ ms}$ validation)
+* **Milestone 3:** Open-Source Developer SDK & Documentation Release
