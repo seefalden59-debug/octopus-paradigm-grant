@@ -3,8 +3,9 @@
 ### Bounding the loss from a compromised hot-wallet backend
 Public architecture documents and grant proposal
 
-> **Status:** research prototype (v0.4.2) · source code in a private repository, reviewer access on request ·
-> not independently audited · documentation © 2026 Mahmoud Al-Nouri
+> **Status:** research prototype (v0.4.3) · source code in a private repository, reviewer access on request
+> (see [Source code access](#source-code-access)) · not independently audited · documentation © 2026 Mahmoud Al-Nouri
+> · documentation licensed under [CC BY 4.0](LICENSE)
 
 > **Revision note.** This README replaces an earlier summary. Figures such as "≤ 0.7 ms" and "≤ 3 %" were design
 > targets, not measurements, and some components it described (a Go layer, micro-VM sandboxes, key-shredding
@@ -33,6 +34,7 @@ independent pods then limits how much any single compromise can reach.
 | Audit record written *before* signing, hash-chained and verifiable offline | built, tested |
 | HMAC-authenticated API with timestamp window and replay protection; client IP and pod decided by the server | built, tested |
 | **Shadow mode**: evaluate mirrored live traffic without enforcing or signing, and report how to size the ceilings | built, tested |
+| **Tripwires**: honey-accounts/addresses bypass policy and the ceilings entirely (any amount) and trip containment immediately | built, tested |
 | Real signer integration (HSM / MPC / EVM adapter) | **not built** (milestone M1) |
 | Restart safety, validated shared-state backend, independent pods, dual control | **not built** (milestones M2-M3) |
 
@@ -45,11 +47,16 @@ independent pods then limits how much any single compromise can reach.
   66 hours of uninterrupted, un-tripped abuse, under the conditions stated in the document.
 * **Decision latency (in-process only).** About 42-45 µs at the median and 90-160 µs at the 99th percentile on a
   small VM, excluding network, TLS and a real signer. End-to-end latency is **not yet measured**.
-* **Adversarial fuzzing.** 50 000 random sequences per property (10 million attempts each, reproducible by seed): the
-  window bound was never exceeded, and the same campaign **found and fixed a flaw** (the one-clock rule reached 1.5 x the
-  ceiling when workers' clocks differ), documented in [docs/04](docs/04-blast-radius-guarantee.md).
-* **Tests.** 106 written; in the reference environment 88 executed and passed, and 18 that need FastAPI or Redis have
-  not yet been run there.
+* **Adversarial fuzzing.** 50,000 random sequences per property (10 million attempts each, reproducible by seed): the
+  window bound was never exceeded, and the same campaign **found and fixed a flaw** (the one-clock rule reached
+  1.5× the ceiling when workers' clocks differ), documented in [docs/04](docs/04-blast-radius-guarantee.md).
+* **Real-hardware validation (2026-10-22).** The guard was run end to end for the first time outside the authoring
+  environment, on a GitHub Codespace (Linux, Python 3.14): `python -m src.main` started successfully with the
+  development stub signer, a health check returned a healthy response, and the full test suite ran with
+  **125 tests, 123 passed, 2 skipped** (both skips require a live Redis server — none failed). The same 20,000-sequence
+  fuzz campaign was re-run there and reproduced the original result exactly: the window bound held with zero
+  violations, and the two documented flaws were still correctly detected. See
+  [docs/06-evaluation.md §4c](docs/06-evaluation.md) for the full account.
 
 ## Fit with the BNB Chain ecosystem
 
@@ -57,23 +64,36 @@ Exchanges and custodians that hold BNB and BEP-20 assets carry the risk this gua
 concrete contribution is **M1**: an EVM reference signer adapter, built on an audited library, with a scripted demo
 on BNB Smart Chain testnet. The design itself is chain-agnostic.
 
-## Milestones (revised)
+## Milestones
 
 | # | Milestone | Acceptance |
 |---|---|---|
 | M1 | EVM reference signer adapter + BNB Smart Chain testnet demo | Scripted demo: approve within the ceiling, refuse beyond it, trip, reset. **End-to-end latency measured and published with hardware, whatever the value.** |
 | M2 | Restart safety and a validated shared-state (Redis) backend | A crash loop cannot reset a ceiling; Redis contract tests pass under failure injection |
-| M3 | Independent pods and dual control; **open-source release of the core library and documentation** | Compromising one pod's credentials cannot approve in another; reset needs two approvers; repository and licence published |
-| M4 | Verification and independent review | Property-based or model-checked proof of the window bound; external review summary published |
+| M3 | Independent pods and dual control; **open-source release of the core library and documentation** | Compromising one pod's credentials cannot approve in another; reset needs two approvers; repository and license published |
+| M4 | Verification and independent review | Property-based verification is already done (see Evidence, above); this milestone adds a model-checked proof of the window bound (a first, unexecuted model already exists) and an external review summary, published |
 
-Amount and timeline: as stated in the submitted grant application. These milestones refine the ones in that
-application; the reasons are given in the revision note at the top.
+### Work plan (sequence only — budget and timeline are in the submitted application, not repeated here)
 
-## Openness and reviewer access
+1. Integrate a production signer (HSM / MPC) and build the EVM reference adapter and testnet demo (M1).
+2. Validate restart safety and the shared-state (Redis) backend under failure injection (M2).
+3. Separate credentials/signing per pod and add dual control for admin actions; publish the core library under an
+   open-source license (M3).
+4. Run the existing TLA+ model and record the result; commission an independent security review (M4).
 
-The source code is in a private repository during evaluation. Reviewers can request read access, or a technical
-walkthrough, through the contact details in the submitted grant application. Grant-funded deliverables (M1-M4) will be developed under an open-source
-licence: **[DECISION: state the licence, e.g. Apache-2.0 or MIT]**.
+## Source code access
+
+The implementation currently lives in a **private repository** while it is under active development and informal
+review. This is a working choice for the current stage, not a refusal to share it: **reviewers — grant committee
+members, security researchers, or potential technical partners — can be added to the private repository as
+collaborators on request**, with read access to the full source, tests, and commit history. Please use the contact
+details in the submitted application to request access.
+
+Independently of any single reviewer's access, **publishing the core library (guard, limiter, engine, tests) under
+an OSI-approved open-source license (MIT or Apache-2.0) is milestone M3** above — a committed deliverable, not a
+vague intention. This documentation repository (design, proof, evaluation, roadmap, and this README) is already
+public and licensed under [CC BY 4.0](LICENSE); note that this license covers the documentation only, not the
+not-yet-published source code.
 
 ## Honest limitations
 
@@ -91,5 +111,5 @@ trip is a controlled denial of service; no independent audit. Full list:
 | [03 Architecture](docs/03-architecture.md) | Request path, design decisions, shadow mode, pod independence |
 | [04 Blast-radius guarantee](docs/04-blast-radius-guarantee.md) | Theorem, proof, conditions, what breaks it |
 | [05 Deployment and operations](docs/05-deployment-and-operations.md) | Topology, configuration, roll-out, runbooks |
-| [06 Evaluation](docs/06-evaluation.md) | Tests, measurements, claims register |
+| [06 Evaluation](docs/06-evaluation.md) | Tests, measurements, claims register, real-hardware run |
 | [07 Limitations and roadmap](docs/07-limitations-and-roadmap.md) | What is missing and in what order |
